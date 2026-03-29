@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trò Chơi Ghép Tranh Gia Đình Tết</title>
+    <style>
+        :root {
+            --bg-color: #fce4ec; /* Màu hồng nhẹ */
+            --primary-color: #d32f2f; /* Màu đỏ đậm */
+            --success-color: #388e3c; /* Màu xanh lá */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        #game-area {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            max-width: 1300px;
+        }
+
+        .piece-panel {
+            display: grid;
+            grid-template-columns: repeat(2, 90px);
+            gap: 10px;
+            width: 200px;
+            min-height: 500px;
+            border: 2px dashed #b0bec5;
+            border-radius: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+            background-color: #f9f9f9;
+        }
+
+        #puzzle-board {
+            display: grid;
+            /* Bảng ghép hình 4x3 mảnh */
+            grid-template-columns: repeat(4, 200px); /* Tăng lên 200px */
+            grid-template-rows: repeat(3, 200px); /* Tăng lên 200px */
+            gap: 2px;
+            background-color: #eee;
+            border: 8px solid #37474f;
+        }
+
+        .drop-zone {
+            width: 200px; /* Tăng lên 200px */
+            height: 200px; /* Tăng lên 200px */
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        .piece {
+            width: 200px; /* Tăng lên 200px */
+            height: 200px; /* Tăng lên 200px */
+            cursor: grab;
+            /* Đường dẫn đến file ảnh mới */
+            background-image: url('giadinh_tet.jpg'); 
+            background-size: 800px 600px; /* Tổng kích thước ảnh chuẩn 4x200, 3x200 */
+            border-radius: 4px;
+            transition: transform 0.1s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .piece:active {
+            cursor: grabbing;
+        }
+
+        /* Thu nhỏ mảnh ghép khi ở khay chứa */
+        .piece-panel .piece {
+            width: 90px;
+            height: 90px;
+            background-size: 360px 270px; /* Tỉ lệ thu nhỏ tương ứng (90/200 = 0.45) */
+        }
+
+        #message {
+            margin-top: 25px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--success-color);
+            height: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Kéo thả mảnh ghép để đoàn tụ gia đình!</h1>
+    
+    <div id="game-area">
+        <div id="piece-pool-1" class="piece-panel"></div>
+        <div id="puzzle-board"></div>
+        <div id="piece-pool-2" class="piece-panel"></div>
+    </div>
+
+    <div id="message"></div>
+
+    <script>
+        const board = document.getElementById('puzzle-board');
+        const pool1 = document.getElementById('piece-pool-1');
+        const pool2 = document.getElementById('piece-pool-2');
+        const message = document.getElementById('message');
+        
+        const ROWS = 3;
+        const COLS = 4;
+        const totalPieces = ROWS * COLS;
+        let piecesPlaced = 0;
+
+        // Trộn ngẫu nhiên mảnh ghép
+        let pieceIndices = Array.from(Array(totalPieces).keys());
+        pieceIndices.sort(() => Math.random() - 0.5);
+
+        // Tạo ô trống
+        for (let i = 0; i < totalPieces; i++) {
+            const zone = document.createElement('div');
+            zone.className = 'drop-zone';
+            zone.dataset.index = i;
+            zone.addEventListener('dragover', e => e.preventDefault());
+            zone.addEventListener('drop', handleDrop);
+            board.appendChild(zone);
+        }
+
+        // Tạo mảnh ghép
+        pieceIndices.forEach((idx, i) => {
+            const piece = document.createElement('div');
+            piece.className = 'piece';
+            piece.draggable = true;
+            piece.id = `piece-${idx}`; 
+            
+            // Tính toán vị trí ảnh khi mảnh ghép ở khay
+            updatePieceStyle(piece, idx, true);
+
+            piece.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text', piece.id);
+            });
+
+            if (i < 6) pool1.appendChild(piece); // 6 mảnh ở khay 1
+            else pool2.appendChild(piece); // 6 mảnh ở khay 2
+        });
+
+        // Hàm cập nhật vị trí ảnh (cho khay và bảng)
+        function updatePieceStyle(piece, idx, inPool) {
+            const size = inPool ? 90 : 200; // Thay đổi kích thước
+            const x = (idx % COLS) * size;
+            const y = Math.floor(idx / COLS) * size;
+            piece.style.backgroundPosition = `-${x}px -${y}px`;
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const pieceId = e.dataTransfer.getData('text');
+            const piece = document.getElementById(pieceId);
+            const pieceIdx = parseInt(pieceId.split('-')[1]);
+            const zoneIdx = parseInt(this.dataset.index);
+
+            // Kiểm tra vị trí đúng và ô trống
+            if (pieceIdx === zoneIdx && !this.hasChildNodes()) {
+                this.appendChild(piece);
+                piece.draggable = false;
+                piece.style.cursor = 'default';
+                
+                // Cập nhật lại kích thước và vị trí ảnh khi vào bảng
+                piece.style.width = '200px'; // Thay đổi kích thước
+                piece.style.height = '200px'; // Thay đổi kích thước
+                piece.style.backgroundSize = '800px 600px'; // Thay đổi kích thước
+                updatePieceStyle(piece, pieceIdx, false);
+
+                piecesPlaced++;
+                checkWin();
+            } else {
+                message.innerText = "Sai vị trí rồi, thử lại nhé!";
+                message.style.color = "#e74c3c"; // Màu đỏ khi sai
+                setTimeout(() => message.innerText = "", 1500);
+            }
+        }
+
+        function checkWin() {
+            if (piecesPlaced === totalPieces) {
+                message.innerText = "🎉 TUYỆT VỜI! GIA ĐÌNH ĐÃ HOÀN THÀNH! 🎉";
+                message.style.color = "var(--success-color)";
+                board.style.border = `8px solid var(--success-color)`;
+            }
+        }
+    </script>
+</body>
+</html>
